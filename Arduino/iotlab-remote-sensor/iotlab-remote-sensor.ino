@@ -9,7 +9,7 @@ const int delayBetweenLoopsMillis = 50;
 const int delayBetweenChangesMillis = 1000;
 
 /* MQTT config */
-const char* server = "10.105.11.15";
+const char* server = "10.130.1.204";
 const int port = 1883;
 const char* topic = "teacher/remote-sensor/presence";
 
