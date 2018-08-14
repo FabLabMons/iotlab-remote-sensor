@@ -1,37 +1,75 @@
 package be.fablabmons.iotlab.remote_sensor;
 
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.app.TaskStackBuilder;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-public class MainActivity extends AppCompatActivity {
+import org.eclipse.paho.client.mqttv3.MqttException;
+
+import java.text.DateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
+
+public class MainActivity extends AppCompatActivity implements PresenceListener {
 
     private static final String TAG = "MainActivity";
+    private static final String LAST_SENSOR_MESSAGE_KEY = "lastSensorMessage";
+    private static final String LAST_ICON_RESOURCE_KEY = "lastIconResource";
+    private static final String DEFAULT_SENSOR_MESSAGE = "No Activity Detected";
+    private static final int DEFAULT_ICON_RESOURCE = R.drawable.still;
+    private static final String PREFERENCE_FILE_KEY = "be.fablabmons.iotlab.remote_sensor.PREFERENCE_FILE_KEY";
+    private static final Locale BE_LOCALE = new Locale("fr", "BE");
+    private static final TimeZone BRUSSELS_TZ = TimeZone.getTimeZone("Europe/Brussels");
+
+    private String sensorMessage;
+    private SharedPreferences sharedPref;
+    private int iconResource;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        updateView("");
 
+        getSharedPreferences();
+        restoreState();
+        updateUi();
+        tryToListenToMqttMessages();
+    }
+
+    private void getSharedPreferences() {
+        sharedPref = getSharedPreferences(PREFERENCE_FILE_KEY, Context.MODE_PRIVATE);
+    }
+
+    private void restoreState() {
+        restoreSensorMessage();
+        restoreIconResource();
+    }
+
+    private void restoreSensorMessage() {
+        sensorMessage = sharedPref.getString(LAST_SENSOR_MESSAGE_KEY, DEFAULT_SENSOR_MESSAGE);
+    }
+
+    private void restoreIconResource() {
+        iconResource = sharedPref.getInt(LAST_ICON_RESOURCE_KEY, DEFAULT_ICON_RESOURCE);
+    }
+
+    private void tryToListenToMqttMessages() {
         try {
-            MqttListener client = new MqttListener(this);
-            client.connectToMQTT();
+            listenToMqttMessages();
         } catch(Exception ex) {
             Log.e(TAG, ex.getMessage());
         }
+    }
+
+    private void listenToMqttMessages() throws MqttException {
+        new MqttSubscriber(this);
     }
 
     @Override
@@ -43,12 +81,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
             return true;
         }
@@ -56,42 +90,58 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void updateView(String sensorMessage) {
-        try {
-            SharedPreferences sharedPref = getSharedPreferences(
-                    "be.fablabmons.iotlab.remote_sensor.PREFERENCE_FILE_KEY",
-                    Context.MODE_PRIVATE);
-
-            if (sensorMessage == null || sensorMessage.equals("")) {
-                sensorMessage = sharedPref.getString("lastSensorMessage",
-                        "No Activity Detected");
-            }
-
-            final int imageResource;
-            if (sensorMessage.contains("still")) {
-                imageResource = R.drawable.still;
-            } else {
-                imageResource = R.drawable.presence_detected;
-            }
-
-            final String tempSensorMessage = sensorMessage;
-
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    TextView updatedField = findViewById(R.id.updated_field);
-                    updatedField.setText(tempSensorMessage);
-                    ImageView detectionIconView = findViewById(R.id.detection_icon);
-                    detectionIconView.setImageResource(imageResource);
-                }
-            });
-
-            SharedPreferences.Editor editor = sharedPref.edit();
-            editor.putString("lastSensorMessage", sensorMessage);
-            editor.commit();
-        } catch (Exception ex) {
-            Log.e(TAG, ex.getMessage());
-        }
+    @Override
+    public void onMovementDetected() {
+        sensorMessage = addTimestamp("Movement detected");
+        iconResource = R.drawable.presence_detected;
+        updateUi();
+        storeCurrentState();
     }
 
+    @Override
+    public void onStill() {
+        sensorMessage = addTimestamp("Still");
+        iconResource = R.drawable.still;
+        updateUi();
+        storeCurrentState();
+    }
+
+    private String addTimestamp(String sensorMessage) {
+        Date now = new Date();
+        String formattedTimestamp = formatDateTime(now);
+        return sensorMessage + " @ " + formattedTimestamp;
+    }
+
+    private String formatDateTime(Date dateTime) {
+        DateFormat df = DateFormat.getTimeInstance(DateFormat.MEDIUM, BE_LOCALE);
+        df.setTimeZone(BRUSSELS_TZ);
+        return df.format(dateTime);
+    }
+
+    private void updateUi() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                updateText();
+                updateIcon();
+            }
+        });
+    }
+
+    private void updateText() {
+        TextView updatedField = findViewById(R.id.updated_field);
+        updatedField.setText(sensorMessage);
+    }
+
+    private void updateIcon() {
+        ImageView detectionIconView = findViewById(R.id.detection_icon);
+        detectionIconView.setImageResource(iconResource);
+    }
+
+    private void storeCurrentState() {
+        SharedPreferences.Editor editor = sharedPref.edit();
+        editor.putString(LAST_SENSOR_MESSAGE_KEY, sensorMessage);
+        editor.putInt(LAST_ICON_RESOURCE_KEY, iconResource);
+        editor.apply();
+    }
 }
