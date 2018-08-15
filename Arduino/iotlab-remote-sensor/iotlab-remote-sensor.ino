@@ -1,4 +1,3 @@
-#include <SPI.h>
 #include <YunClient.h>
 #include <PubSubClient.h>
 
