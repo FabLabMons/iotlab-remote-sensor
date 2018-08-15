@@ -7,10 +7,10 @@ const int sensorGpio = 3;
 const int delayBetweenLoopsMillis = 500;
 
 /* MQTT config */
-const char* server = "10.130.1.204";
+const char* broker = "10.130.1.204";
 const int port = 1883;
 const char* topic = "teacher/remote-sensor/presence";
-const char* mqttClientId = "teacher-client";
+const char* mqttClientId = "teacher-arduino";
 
 BridgeClient bridgeClient;
 PubSubClient pubSubClient;
@@ -38,7 +38,7 @@ void connectToWiFi() {
 }
 
 void setupPubSubClient() {
-  pubSubClient.setServer(server, port);
+  pubSubClient.setServer(broker, port);
   pubSubClient.setCallback(logPayload);
   pubSubClient.setClient(bridgeClient);
 }

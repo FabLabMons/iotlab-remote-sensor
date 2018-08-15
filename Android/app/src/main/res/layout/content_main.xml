@@ -23,7 +23,7 @@
         android:layout_height="wrap_content"
         android:layout_below="@+id/detection_icon"
         android:layout_centerHorizontal="true"
-        android:text="Last updated @ "
+        android:text=""
         android:textAppearance="?android:attr/textAppearanceMedium"
         android:textColor="#000000"
         android:textSize="24sp" />

@@ -16,7 +16,7 @@ class MqttSubscriber {
     private static final String TAG = "MqttSubscriber";
     private static final String BROKER_CONNECT_STRING = "tcp://10.130.1.204:1883";
     private static final String TOPIC = "teacher/remote-sensor/presence";
-    private static final String CLIENT_ID = "teacherMqttListener";
+    private static final String CLIENT_ID = "teacher-android";
 
     private final PresenceListener presenceListener;
 
