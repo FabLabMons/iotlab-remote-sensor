@@ -1,18 +1,18 @@
-#include <YunClient.h>
+#include <BridgeClient.h>
 #include <PubSubClient.h>
 
 /* Sensor config */
 const int sensorCalibrationTimeSecs = 20;
 const int sensorGpio = 3;
-const int delayBetweenLoopsMillis = 50;
-const int delayBetweenChangesMillis = 1000;
+const int delayBetweenLoopsMillis = 500;
 
 /* MQTT config */
 const char* server = "10.130.1.204";
 const int port = 1883;
 const char* topic = "teacher/remote-sensor/presence";
+const char* mqttClientId = "teacher-client";
 
-YunClient yunClient;
+BridgeClient bridgeClient;
 PubSubClient pubSubClient;
 
 bool currentSensorValue = false;
@@ -37,6 +37,18 @@ void connectToWiFi() {
   printConnectionInformation();
 }
 
+void setupPubSubClient() {
+  pubSubClient.setServer(server, port);
+  pubSubClient.setCallback(logPayload);
+  pubSubClient.setClient(bridgeClient);
+}
+
+void setupSensor() {
+  setupSensorGpio();
+  calibrateSensor();
+  Serial.println("Sensor ready");
+}
+
 void printConnectionInformation() {  
   // Initialize a new process
   Process wifiCheck;
@@ -55,23 +67,6 @@ void printConnectionInformation() {
   Serial.println("");
 }
 
-void setupPubSubClient() {
-  pubSubClient.setServer(server, port);
-  pubSubClient.setCallback(logPayload);
-  pubSubClient.setClient(yunClient);
-}
-
-void logPayload(char* topic, byte* payload, unsigned int length) {
-  String payloadContent = String((char *) payload);
-  Serial.println("Payload: " + payloadContent);
-}
-
-void setupSensor() {
-  setupSensorGpio();
-  calibrateSensor();
-  Serial.println("Sensor ready");
-}
-
 void setupSensorGpio() {
   pinMode(sensorGpio, INPUT);
   digitalWrite(sensorGpio, LOW);
@@ -84,6 +79,11 @@ void calibrateSensor() {
     delay(1000);
   }
   Serial.println(" done");
+}
+
+void logPayload(char* topic, byte* payload, unsigned int length) {
+  String payloadContent = String((char *) payload);
+  Serial.println("Payload: " + payloadContent);
 }
 
 void loop() {
@@ -102,15 +102,10 @@ void publishActivityIfNeeded() {
 
 void readSensorData() {
   currentSensorValue = digitalRead(sensorGpio) == HIGH;
-  digitalWrite(13, currentSensorValue ? HIGH : LOW);
 }
 
 bool newActivityIsDetected() {
   return currentSensorValue != lastSensorValue;
-}
-
-void resetChangeDetection() {
-  lastSensorValue = currentSensorValue;
 }
 
 void publishNewActivity() {
@@ -118,6 +113,10 @@ void publishNewActivity() {
   connectToMqttBroker();
   publishMessageIfBrokerIsAvailable(message);
   disconnectFromMqttBroker();
+}
+
+void resetChangeDetection() {
+  lastSensorValue = currentSensorValue;
 }
 
 char* prepareMessageToSend() {
@@ -128,13 +127,9 @@ char* prepareMessageToSend() {
   }
 }
 
-bool thereIsMovement() {
-  return currentSensorValue;
-}
-
 void connectToMqttBroker() {
   Serial.println("Connecting to MQTT broker");
-  if (pubSubClient.connect( "arduinoIoTClient" )) {
+  if (pubSubClient.connect(mqttClientId)) {
     Serial.println("Connected to MQTT broker");
   } else {
     Serial.println("Connection to MQTT Broker Failed");
@@ -147,6 +142,14 @@ void publishMessageIfBrokerIsAvailable(char* message) {
   }
 }
 
+void disconnectFromMqttBroker() {
+  pubSubClient.disconnect();
+}
+
+bool thereIsMovement() {
+  return currentSensorValue;
+}
+
 void publishMessage(char* message) {
   Serial.print("Publishing message: ");
   Serial.println(message);
@@ -155,7 +158,4 @@ void publishMessage(char* message) {
   Serial.println(status);
 }
 
-void disconnectFromMqttBroker() {
-  pubSubClient.disconnect();
-}
 
