@@ -16,12 +16,14 @@ import java.text.DateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity implements PresenceListener {
 
     private static final String TAG = "MainActivity";
     private static final String LAST_SENSOR_MESSAGE_KEY = "lastSensorMessage";
     private static final String LAST_ICON_RESOURCE_KEY = "lastIconResource";
+    private static final String UNIQUE_ID_KEY = "uniqueId";
     private static final String DEFAULT_SENSOR_MESSAGE = "No Activity Detected";
     private static final int DEFAULT_ICON_RESOURCE = R.drawable.still;
     private static final String PREFERENCE_FILE_KEY = "be.fablabmons.iotlab.remote_sensor.PREFERENCE_FILE_KEY";
@@ -31,6 +33,7 @@ public class MainActivity extends AppCompatActivity implements PresenceListener 
     private String sensorMessage;
     private SharedPreferences sharedPref;
     private int iconResource;
+    private UUID uniqueId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,6 +53,7 @@ public class MainActivity extends AppCompatActivity implements PresenceListener 
     private void restoreState() {
         restoreSensorMessage();
         restoreIconResource();
+        restoreUniqueId();
     }
 
     private void restoreSensorMessage() {
@@ -58,6 +62,11 @@ public class MainActivity extends AppCompatActivity implements PresenceListener 
 
     private void restoreIconResource() {
         iconResource = sharedPref.getInt(LAST_ICON_RESOURCE_KEY, DEFAULT_ICON_RESOURCE);
+    }
+
+    private void restoreUniqueId() {
+        String uniqueIdString = sharedPref.getString(UNIQUE_ID_KEY, UUID.randomUUID().toString());
+        uniqueId = UUID.fromString(uniqueIdString);
     }
 
     private void tryToListenToMqttMessages() {
@@ -69,7 +78,7 @@ public class MainActivity extends AppCompatActivity implements PresenceListener 
     }
 
     private void listenToMqttMessages() throws MqttException {
-        new MqttSubscriber(this);
+        new MqttSubscriber(this, uniqueId);
     }
 
     @Override
@@ -142,6 +151,7 @@ public class MainActivity extends AppCompatActivity implements PresenceListener 
         SharedPreferences.Editor editor = sharedPref.edit();
         editor.putString(LAST_SENSOR_MESSAGE_KEY, sensorMessage);
         editor.putInt(LAST_ICON_RESOURCE_KEY, iconResource);
+        editor.putString(UNIQUE_ID_KEY, uniqueId.toString());
         editor.apply();
     }
 }

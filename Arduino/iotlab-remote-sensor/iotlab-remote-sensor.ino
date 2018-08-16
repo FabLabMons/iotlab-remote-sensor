@@ -5,6 +5,7 @@
 const int sensorCalibrationTimeSecs = 20;
 const int sensorGpio = 3;
 const int delayBetweenLoopsMillis = 500;
+const int onboardLedGpio = 13;
 
 /* MQTT config */
 const char* broker = "10.130.1.204";
@@ -23,6 +24,7 @@ void setup() {
   connectToWiFi();
   setupPubSubClient();
   setupSensor();
+  notifySetupComplete()
 }
 
 void setupSerial() {
@@ -47,6 +49,20 @@ void setupSensor() {
   setupSensorGpio();
   calibrateSensor();
   Serial.println("Sensor ready");
+}
+
+void notifySetupComplete() {
+  pinMode(onboardLedGpio, OUTPUT);
+  for (int i = 0; i < 3; i++) {
+    blinkOnboardLed();
+  }
+}
+
+void blinkOnboardLed() {
+  digitalWrite(onboardLedGpio, HIGH);
+  delay(200);
+  digitalWrite(onboardLedGpio, LOW);
+  delay(200);
 }
 
 void printConnectionInformation() {  
@@ -87,6 +103,7 @@ void logPayload(char* topic, byte* payload, unsigned int length) {
 }
 
 void loop() {
+  pubSubClient.loop();
   publishActivityIfNeeded();
 }
 
@@ -153,7 +170,7 @@ bool thereIsMovement() {
 void publishMessage(char* message) {
   Serial.print("Publishing message: ");
   Serial.println(message);
-  int status = pubSubClient.publish(topic, message);
+  int status = pubSubClient.publish(topic, message, true);
   Serial.print("Published message, status: ");
   Serial.println(status);
 }

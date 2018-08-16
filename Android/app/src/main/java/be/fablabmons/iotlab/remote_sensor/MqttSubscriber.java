@@ -11,19 +11,24 @@ import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
+import java.util.UUID;
+
 class MqttSubscriber {
 
     private static final String TAG = "MqttSubscriber";
     private static final String BROKER_CONNECT_STRING = "tcp://10.130.1.204:1883";
     private static final String TOPIC = "teacher/remote-sensor/presence";
-    private static final String CLIENT_ID = "teacher-android";
+    private static final String CLIENT_ID_PREFIX = "teacher-android-";
 
     private final PresenceListener presenceListener;
+    private final UUID uniqueId;
+    private final MqttClient client;
 
-    MqttSubscriber(PresenceListener presenceListener) throws MqttException {
+    MqttSubscriber(PresenceListener presenceListener, UUID uniqueId) throws MqttException {
         this.presenceListener = presenceListener;
+        this.uniqueId = uniqueId;
 
-        MqttClient client = createClient();
+        client = createClient();
         connectClient(client);
         subscribeToTopic(client);
     }
@@ -31,7 +36,7 @@ class MqttSubscriber {
     @NonNull
     private MqttClient createClient() throws MqttException {
         Log.i(TAG, "Creating New Client");
-        MqttClient client = new MqttClient(BROKER_CONNECT_STRING, CLIENT_ID, new MemoryPersistence());
+        MqttClient client = new MqttClient(BROKER_CONNECT_STRING, CLIENT_ID_PREFIX + uniqueId.toString(), new MemoryPersistence());
         client.setCallback(new PresenceMessageCallback());
         return client;
     }
