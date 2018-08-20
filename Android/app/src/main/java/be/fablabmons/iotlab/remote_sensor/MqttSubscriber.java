@@ -16,7 +16,7 @@ import java.util.UUID;
 class MqttSubscriber {
 
     private static final String TAG = "MqttSubscriber";
-    private static final String BROKER_CONNECT_STRING = "tcp://10.130.1.204:1883";
+    private static final String BROKER_CONNECT_STRING = "tcp://10.10.32.169:1883";
     private static final String TOPIC = "teacher/remote-sensor/presence";
     private static final String CLIENT_ID_PREFIX = "teacher-android-";
 

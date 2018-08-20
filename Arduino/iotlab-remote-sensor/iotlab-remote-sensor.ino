@@ -8,7 +8,7 @@ const int delayBetweenLoopsMillis = 500;
 const int onboardLedGpio = 13;
 
 /* MQTT config */
-const char* broker = "10.130.1.204";
+const char* broker = "10.10.32.169";
 const int port = 1883;
 const char* topic = "teacher/remote-sensor/presence";
 const char* mqttClientId = "teacher-arduino";
@@ -24,7 +24,7 @@ void setup() {
   connectToWiFi();
   setupPubSubClient();
   setupSensor();
-  notifySetupComplete()
+  notifySetupComplete();
 }
 
 void setupSerial() {
