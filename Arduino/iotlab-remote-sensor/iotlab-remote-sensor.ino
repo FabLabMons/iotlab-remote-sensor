@@ -20,159 +20,63 @@ bool currentSensorValue = false;
 bool lastSensorValue = false;
 
 void setup() {
-  setupSerial();
-  connectToWiFi();
-  setupPubSubClient();
-  setupSensor();
-  notifySetupComplete();
-}
+  Serial.begin(9600);
+  delay(2000);
 
-void setupSerial() {
-    Serial.begin(9600);
-    delay(2000);
-    Serial.println("Serial port setup");
-}
-
-void connectToWiFi() {
-  Serial.println("Connecting to WiFi...");
+  Serial.println("Setup START");
+  
   Bridge.begin();
-  printConnectionInformation();
-}
 
-void setupPubSubClient() {
-  pubSubClient.setServer(broker, port);
-  pubSubClient.setCallback(logPayload);
-  pubSubClient.setClient(bridgeClient);
-}
-
-void setupSensor() {
-  setupSensorGpio();
-  calibrateSensor();
-  Serial.println("Sensor ready");
-}
-
-void notifySetupComplete() {
-  pinMode(onboardLedGpio, OUTPUT);
-  for (int i = 0; i < 3; i++) {
-    blinkOnboardLed();
-  }
-}
-
-void blinkOnboardLed() {
-  digitalWrite(onboardLedGpio, HIGH);
-  delay(200);
-  digitalWrite(onboardLedGpio, LOW);
-  delay(200);
-}
-
-void printConnectionInformation() {  
-  // Initialize a new process
-  Process wifiCheck;
-
-  // Run Command
-  wifiCheck.runShellCommand("/usr/bin/pretty-wifi-info.lua");
-
-  // Print Connection Information  
-  while (wifiCheck.available() > 0) 
-  {
-    char c = wifiCheck.read();
-    Serial.print(c);
-  }
-
-  Serial.println("-----------------------------------------------");
-  Serial.println("");
-}
-
-void setupSensorGpio() {
   pinMode(sensorGpio, INPUT);
   digitalWrite(sensorGpio, LOW);
-}
-
-void calibrateSensor() {
   Serial.print("Calibrating sensor...");
   for (int i = 0; i < sensorCalibrationTimeSecs; i++) {
     Serial.print('.');
     delay(1000);
   }
-  Serial.println(" done");
+  Serial.println();
+  Serial.println("Sensor ready");
+
+  pubSubClient.setServer(broker, port);
+  pubSubClient.setCallback(callback);
+  pubSubClient.setClient(bridgeClient);
+
+  Serial.println("Setup END");
 }
 
-void logPayload(char* topic, byte* payload, unsigned int length) {
-  String payloadContent = String((char *) payload);
-  Serial.println("Payload: " + payloadContent);
+void callback(char* topic, byte* payload, unsigned int length) {
+  char message[100];
+  strncpy(message, payload, length);
+  Serial.print("Payload: ");
+  Serial.println(message);
 }
 
 void loop() {
   pubSubClient.loop();
-  publishActivityIfNeeded();
-}
-
-void publishActivityIfNeeded() {
-  readSensorData();
-  if (newActivityIsDetected()) {
+  
+  currentSensorValue = digitalRead(sensorGpio);
+  
+  if (currentSensorValue != lastSensorValue) {
     Serial.println("New activity detected");
-    publishNewActivity();
-    resetChangeDetection();
+    char* message;
+    if (currentSensorValue) {
+      message = "movement detected";
+    } else {
+      message = "still";
+    }
+
+    pubSubClient.connect(mqttClientId);
+    
+    Serial.print("Publishing message: ");
+    Serial.println(message);
+    pubSubClient.publish(topic, message, true);
+
+    pubSubClient.disconnect();
+    
+    lastSensorValue = currentSensorValue;
   }
+  
   delay(delayBetweenLoopsMillis);
-}
-
-void readSensorData() {
-  currentSensorValue = digitalRead(sensorGpio) == HIGH;
-}
-
-bool newActivityIsDetected() {
-  return currentSensorValue != lastSensorValue;
-}
-
-void publishNewActivity() {
-  char* message = prepareMessageToSend();
-  connectToMqttBroker();
-  publishMessageIfBrokerIsAvailable(message);
-  disconnectFromMqttBroker();
-}
-
-void resetChangeDetection() {
-  lastSensorValue = currentSensorValue;
-}
-
-char* prepareMessageToSend() {
-  if (thereIsMovement()) {
-    return "movement detected";
-  } else {
-    return "still";
-  }
-}
-
-void connectToMqttBroker() {
-  Serial.println("Connecting to MQTT broker");
-  if (pubSubClient.connect(mqttClientId)) {
-    Serial.println("Connected to MQTT broker");
-  } else {
-    Serial.println("Connection to MQTT Broker Failed");
-  }
-}
-
-void publishMessageIfBrokerIsAvailable(char* message) {
-  if (pubSubClient.connected()) {
-    publishMessage(message);
-  }
-}
-
-void disconnectFromMqttBroker() {
-  pubSubClient.disconnect();
-}
-
-bool thereIsMovement() {
-  return currentSensorValue;
-}
-
-void publishMessage(char* message) {
-  Serial.print("Publishing message: ");
-  Serial.println(message);
-  int status = pubSubClient.publish(topic, message, true);
-  Serial.print("Published message, status: ");
-  Serial.println(status);
 }
 
 
