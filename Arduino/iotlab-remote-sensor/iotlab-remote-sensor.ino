@@ -38,17 +38,9 @@ void setup() {
   Serial.println("Sensor ready");
 
   pubSubClient.setServer(broker, port);
-  pubSubClient.setCallback(callback);
   pubSubClient.setClient(bridgeClient);
 
   Serial.println("Setup END");
-}
-
-void callback(char* topic, byte* payload, unsigned int length) {
-  char message[100];
-  strncpy(message, payload, length);
-  Serial.print("Payload: ");
-  Serial.println(message);
 }
 
 void loop() {
